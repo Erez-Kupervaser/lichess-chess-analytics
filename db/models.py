@@ -12,12 +12,15 @@ class Game(Base):
         Index("ix_games_opening_black_elo", "opening", "black_elo"),
     )
 
-    # Primary key (unique ID for every game in our database)
-    id = Column(Integer, primary_key=True, index=True)
-    
-    # We index the players and openings because people will likely search for them
-    white_player = Column(String, index=True)
-    black_player = Column(String, index=True)
+    # Primary key (unique ID for every game in our database).
+    # No index=True: PostgreSQL already creates a unique index for every primary key
+    # (games_pkey), so a second index on id would only waste space and slow inserts.
+    id = Column(Integer, primary_key=True)
+
+    # Players are searched case-insensitively, so they are indexed on lower(name)
+    # (see ix_games_white_player_lower below), not on the raw value.
+    white_player = Column(String)
+    black_player = Column(String)
     
     # ELO is Integer (not String!) so numeric comparisons and sorting work correctly.
     # nullable=True means unknown ratings ("?") are stored as NULL instead of 0.
@@ -26,7 +29,9 @@ class Game(Base):
     black_elo = Column(Integer, index=True, nullable=True)
     
     result = Column(String)
-    opening = Column(String, index=True)
+    # No single-column index: the composite (opening, white_elo) index above already
+    # serves queries that filter on opening alone (leftmost-prefix rule).
+    opening = Column(String)
     total_moves = Column(Integer)
     
     # New Advanced Analytics Columns
@@ -45,6 +50,14 @@ class Game(Base):
     # NULL when the game has no clock information (common in older datasets).
     white_avg_think_time = Column(Float, nullable=True)
     black_avg_think_time = Column(Float, nullable=True)
+
+
+# Expression indexes for case-insensitive player lookup.
+# A plain index on white_player stores "DrNykterstein" as-is, so it cannot answer
+# "WHERE lower(white_player) = 'drnykterstein'". Indexing lower(white_player) can,
+# as long as the query uses the exact same expression (see api/routes.py).
+Index("ix_games_white_player_lower", func.lower(Game.white_player))
+Index("ix_games_black_player_lower", func.lower(Game.black_player))
 
 
 # Game identity: the same two players, starting at the same second, with the same moves.

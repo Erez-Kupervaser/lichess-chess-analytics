@@ -76,16 +76,22 @@ def get_player_stats(
     Calculate advanced statistics for a specific player, filtering by color, time control, or dates.
     Analyzes performance dynamically including success against higher rated vs lower rated players.
     """
-    query = db.query(Game).filter(
-        (Game.white_player.ilike(player_name)) | (Game.black_player.ilike(player_name))
-    )
-    
+    # Case-insensitive exact match on lower(name). This matches the expression indexes
+    # ix_games_white_player_lower / ix_games_black_player_lower, so PostgreSQL can jump
+    # straight to the player's games. (ILIKE couldn't use an index, and it treated the
+    # "_" common in Lichess usernames as a wildcard matching any character.)
+    name = player_name.lower()
+    plays_white = func.lower(Game.white_player) == name
+    plays_black = func.lower(Game.black_player) == name
+
+    query = db.query(Game).filter(plays_white | plays_black)
+
     # --- DYNAMIC FILTERS ---
     if color:
         if color.lower() == "white":
-            query = query.filter(Game.white_player.ilike(player_name))
+            query = query.filter(plays_white)
         elif color.lower() == "black":
-            query = query.filter(Game.black_player.ilike(player_name))
+            query = query.filter(plays_black)
             
     if time_control:
         query = query.filter(Game.time_control.ilike(f"%{time_control}%"))

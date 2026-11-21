@@ -14,7 +14,7 @@ services:
       POSTGRES_PASSWORD: "1234"
       POSTGRES_DB: lichess_db
     ports:
-      - "5432:5432"                    # Expose to host so you can connect with pgAdmin/DBeaver
+      - "5433:5432"                    # Host port 5433 (5432 is taken by a local PostgreSQL install)
     volumes:
       - postgres_data:/var/lib/postgresql/data   # Persist data between restarts
     healthcheck:

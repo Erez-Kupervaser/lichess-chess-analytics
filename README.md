@@ -4,7 +4,7 @@ An end-to-end data engineering project that ingests raw game dumps from the
 [Lichess open database](https://database.lichess.org/), stores them in PostgreSQL,
 and exposes chess analytics through a REST API and an interactive dashboard.
 
-~1 million rated games loaded from the February 2017 dump (1.8 GB zstd-compressed PGN).
+~3 million rated games loaded from the February 2017 dump (1.8 GB zstd-compressed PGN).
 
 ## Architecture
 

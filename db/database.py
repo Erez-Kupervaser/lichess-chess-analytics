@@ -8,7 +8,7 @@ from sqlalchemy.ext.declarative import declarative_base
 # When running locally, it falls back to the default localhost connection string.
 SQLALCHEMY_DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://demo:1234@localhost:5432/lichess_db"
+    "postgresql://demo:1234@localhost:5433/lichess_db"
 )
 
 # The engine is the core interface to the database

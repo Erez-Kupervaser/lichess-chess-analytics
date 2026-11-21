@@ -32,6 +32,10 @@ All services run with Docker Compose.
 - Enriches each game during ingestion: final board position (FEN) and average
   think time per move for each side, computed from `[%clk]` PGN clock comments.
 - Bulk-loads into PostgreSQL in configurable batches.
+- Idempotent: a unique index on game identity (players, start time, move-list hash) plus
+  `INSERT ... ON CONFLICT DO NOTHING` means re-running the loader after a crash skips games
+  that are already stored instead of duplicating them. `db/deduplicate.py` is the one-off
+  migration that removed ~500K duplicates created by an interrupted load before this existed.
 
 **Database**
 - Integer Elo columns, date/time, time control, opening, move list.

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Float, String, Date, Time, Index
+from sqlalchemy import Column, Integer, Float, String, Date, Time, Index, func
 from db.database import Base
 
 class Game(Base):
@@ -45,3 +45,21 @@ class Game(Base):
     # NULL when the game has no clock information (common in older datasets).
     white_avg_think_time = Column(Float, nullable=True)
     black_avg_think_time = Column(Float, nullable=True)
+
+
+# Game identity: the same two players, starting at the same second, with the same moves.
+# Players + start time alone is NOT enough: Lichess has pairs who started two different
+# games within the same second (e.g. an aborted game and its rematch), so the move list is
+# part of the key. md5(moves) keeps the index small - long move strings would exceed
+# PostgreSQL's B-tree entry size limit.
+# Being UNIQUE makes loading idempotent: the loader uses INSERT ... ON CONFLICT DO NOTHING,
+# so re-running it over the same file skips games that are already stored.
+Index(
+    "uq_games_identity",
+    Game.white_player,
+    Game.black_player,
+    Game.date,
+    Game.utc_time,
+    func.md5(Game.moves),
+    unique=True,
+)

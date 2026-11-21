@@ -14,29 +14,37 @@ def load_games_to_db(file_path: str, max_games: int = None, batch_size: int = 50
     db = SessionLocal()
     
     batch: list[dict] = []
+    total_read = 0
     total_inserted = 0
-    
+
+    def flush():
+        """Inserts the current batch. Games already in the DB are skipped, not duplicated."""
+        nonlocal total_read, total_inserted
+        total_inserted += insert_games_bulk(db, batch)
+        total_read += len(batch)
+        batch.clear()  # Empty the batch to prepare for the next one
+        logging.info(f"Read {total_read} games: {total_inserted} new, "
+                     f"{total_read - total_inserted} already in the database (skipped)")
+
     try:
         # yield_games gives us one dictionary at a time lazily without exploding RAM
         for game_dict in yield_games(file_path, max_games=max_games):
             batch.append(game_dict)
-            
-            # When the batch reaches the desired size (e.g., 5000 games)
-            # we do a single massive "INSERT" to the database
+
+            # When the batch reaches the desired size (e.g., 10000 games)
+            # we do a single multi-row INSERT to the database
             if len(batch) >= batch_size:
-                insert_games_bulk(db, batch)
-                total_inserted += len(batch)
-                logging.info(f"Loaded {total_inserted} games so far...")
-                batch.clear() # Empty the batch to prepare for the next 5000
-                
-        # After the loop finishes, there might be a few games left in the batch (e.g. 3000 games left over)
+                flush()
+
+        # After the loop finishes, there might be a few games left in the batch
         if batch:
-            insert_games_bulk(db, batch)
-            total_inserted += len(batch)
-            logging.info(f"Loaded final remaining batch. Total games loaded: {total_inserted}")
-            
+            flush()
+
     except Exception as e:
+        # Stop the load instead of carrying on with missing batches.
+        # Because inserts are idempotent, it is safe to simply run the loader again.
         logging.error(f"Error during data loading process: {e}")
+        raise
     finally:
         # We MUST close the connection when we're completely done
         db.close()

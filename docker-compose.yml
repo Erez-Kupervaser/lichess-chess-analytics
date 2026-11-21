@@ -1,0 +1,90 @@
+version: "3.9"
+
+services:
+
+  # ─────────────────────────────────────────────
+  # PostgreSQL Database
+  # ─────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine          # Lightweight Alpine-based Postgres
+    container_name: lichess_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: "1234"
+      POSTGRES_DB: lichess_db
+    ports:
+      - "5432:5432"                    # Expose to host so you can connect with pgAdmin/DBeaver
+    volumes:
+      - postgres_data:/var/lib/postgresql/data   # Persist data between restarts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d lichess_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # FastAPI Application
+  # ─────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lichess_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"                    # API available at http://localhost:8000
+    environment:
+      # Override the hard-coded localhost URL so the container reaches the DB service
+      DATABASE_URL: postgresql://demo:1234@db:5432/lichess_db
+    volumes:
+      # Mount source code so --reload picks up live changes during development
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy     # Wait until Postgres is ready before starting
+
+  # ─────────────────────────────────────────────
+  # One-off ETL Loader  (run with: docker compose run etl)
+  # ─────────────────────────────────────────────
+  etl:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lichess_etl
+    environment:
+      DATABASE_URL: postgresql://demo:1234@db:5432/lichess_db
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    # Override the default CMD — run the ETL loader directly
+    command: python -m etl.loader
+    profiles:
+      - etl                            # Only starts when explicitly requested
+
+  # ─────────────────────────────────────────────
+  # Streamlit Dashboard
+  # ─────────────────────────────────────────────
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lichess_dashboard
+    restart: unless-stopped
+    ports:
+      - "8501:8501"                    # Streamlit default port
+    environment:
+      DATABASE_URL: postgresql://demo:1234@db:5432/lichess_db
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    # Override the default CMD — run Streamlit
+    command: streamlit run dashboard.py --server.port 8501 --server.address 0.0.0.0
+
+volumes:
+  postgres_data:
+    name: lichess_postgres_data

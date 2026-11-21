@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-chess
+zstandard
+pandas
+requests
+sqlalchemy
+psycopg2-binary
+streamlit
+plotly

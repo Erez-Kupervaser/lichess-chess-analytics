@@ -1,0 +1,26 @@
+# Raw Lichess data dumps (multi-GB, download from database.lichess.org)
+*.pgn
+*.pgn.zst
+*.zst
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# Local environment / secrets
+.env
+.env.*
+
+# Personal planning notes (Hebrew drafts)
+chess_project_roadmap.md
+chess_api_features.md
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
